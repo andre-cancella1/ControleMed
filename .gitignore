@@ -2,4 +2,4 @@
 instance/
 instance copy/
 venv/
-_pycache__/
+__pycache__/
