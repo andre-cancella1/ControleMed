@@ -1,0 +1,304 @@
+
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha do aluno | ControleMed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <main class="container">
+
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-icon" aria-hidden="true">CM</div>
+                <div>
+                    <h1>ControleMed</h1>
+                    <p>Ficha individual do aluno</p>
+                </div>
+            </div>
+
+            <div class="user-area">
+                <a href="{{ url_for('dashboard') }}" class="button button-outline">
+                    Voltar aos alunos
+                </a>
+            </div>
+        </header>
+
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% if mensagens %}
+        <div class="messages">
+            {% for categoria, mensagem in mensagens %}
+            <div class="alert alert-{{ categoria }}" role="alert">
+                {{ mensagem }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <section class="page-heading">
+            <div>
+                <span class="eyebrow">REGISTRO INDIVIDUAL</span>
+                <h2>{{ aluno['nome'] }}</h2>
+                <p>Turma: {{ aluno['turma'] }}</p>
+            </div>
+
+            <a href="{{ url_for('novo_medicamento', aluno_id=aluno['id']) }}"
+                class="button button-primary">
+                + Cadastrar medicamento
+            </a>
+        </section>
+
+        <section class="section-card">
+            <div class="section-title">
+                <div>
+                    <h3>Medicamentos em uso</h3>
+                    <p>Medicamentos ativos vinculados a este aluno.</p>
+                </div>
+
+                <span class="result-count">
+                    {{ medicamentos|length }} medicamento(s)
+                </span>
+            </div>
+
+            {% if medicamentos %}
+            <div class="student-grid">
+                {% for medicamento in medicamentos %}
+                <article class="student-card medication-card">
+                    <div class="student-info">
+                        <h4>{{ medicamento['nome'] }}</h4>
+
+                        {% if medicamento['dosagem'] %}
+                        <p>{{ medicamento['dosagem'] }}</p>
+                        {% endif %}
+
+                        {% if medicamento['observacoes'] %}
+                        <p>{{ medicamento['observacoes'] }}</p>
+                        {% endif %}
+
+                        <p>
+                            Início: {{ medicamento['data_inicio'] or 'Não informado' }}
+                            {% if medicamento['data_fim'] %}
+                            · Fim: {{ medicamento['data_fim'] }}
+                            {% endif %}
+                        </p>
+
+                        <div>
+                            {% set horarios = horarios_por_medicamento.get(medicamento['id'], []) %}
+
+                            {% if horarios %}
+                            <strong>Horários planejados</strong>
+
+                            <ul>
+                                {% for horario in horarios %}
+                                {% set dose_registrada = horario['id'] in horarios_registrados_hoje %}
+                                <li>
+                                    {% set dias = [
+                                        'Segunda-feira',
+                                        'Terça-feira',
+                                        'Quarta-feira',
+                                        'Quinta-feira',
+                                        'Sexta-feira'
+                                    ] %}
+                                    {% set dia_horario = dias[horario['dia_semana']] if 0 <= horario['dia_semana'] <= 4 else 'Dia inválido' %}
+                                    {% set dose_bloqueada = dose_registrada or horario['dia_semana'] > dia_atual %}
+
+                                    <p>
+                                        {{ dia_horario }}
+                                        — {{ horario['horario'] }}
+                                    </p>
+
+                                    <form method="POST"
+                                        action="{{ url_for('registrar_administracao', medicamento_id=medicamento['id']) }}"
+                                        class="administracao-form">
+
+                                        <input type="hidden"
+                                            name="horario_id"
+                                            value="{{ horario['id'] }}">
+
+                                        <label class="resultado-campo">
+                                            <span>Resultado da dose</span>
+                                            <span class="resultado-select">
+                                                <select name="tipo" class="resultado-administracao" required
+                                                    {% if dose_bloqueada %}disabled{% endif %}>
+                                                    <option value="ADMINISTRADO">Administrado</option>
+                                                    <option value="NAO_ADMINISTRADO">Não administrado</option>
+                                                    <option value="RECUSADO">Recusado pelo aluno</option>
+                                                </select>
+                                            </span>
+                                        </label>
+
+                                        <div class="campo-motivo" hidden>
+                                            <label>
+                                                Motivo / observação
+                                                <textarea name="observacoes"
+                                                    class="observacao-administracao"
+                                                    rows="2"
+                                                    placeholder="Informe o motivo do ocorrido"></textarea>
+                                            </label>
+                                        </div>
+
+                                        <button type="submit" class="button button-primary"
+                                            {% if dose_bloqueada %}disabled{% endif %}>
+                                            {% if dose_registrada %}
+                                            Registrada hoje
+                                            {% elif horario['dia_semana'] > dia_atual %}
+                                            Liberar na {{ dia_horario|lower }}
+                                            {% else %}
+                                            Registrar dose
+                                            {% endif %}
+                                        </button>
+                                    </form>
+                                </li>
+                                {% endfor %}
+                            </ul>
+
+                            {% else %}
+                            <p>Nenhum horário cadastrado.</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-actions">
+                            <a href="{{ url_for('editar_medicamento', medicamento_id=medicamento['id']) }}"
+                                class="button button-outline">
+                                Editar
+                            </a>
+
+                            <form method="POST"
+                                action="{{ url_for('suspender_medicamento', medicamento_id=medicamento['id']) }}"
+                                onsubmit="return confirm('Tem certeza de que deseja suspender este medicamento? Os dados e o histórico serão preservados.');">
+                                <button type="submit" class="button button-outline">
+                                    Suspender
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+
+            {% else %}
+            <div class="empty-state">
+                <h3>Nenhum medicamento cadastrado</h3>
+                <p>
+                    Cadastre o primeiro medicamento para começar a organizar
+                    os horários e os registros de administração.
+                </p>
+
+                <a href="{{ url_for('novo_medicamento', aluno_id=aluno['id']) }}"
+                    class="button button-primary">
+                    Cadastrar medicamento
+                </a>
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="section-card historico-section">
+            <div class="section-title">
+                <div>
+                    <h3>Histórico semanal</h3>
+                    <p>Registros de administração e ocorrências dos últimos sete dias.</p>
+                </div>
+                <span class="historico-contagem">{{ historico|length }} registros</span>
+            </div>
+
+            {% if historico %}
+            <div class="historico-lista">
+                {% for registro in historico %}
+                <article class="historico-item">
+                    {% set data_registro = registro['data_registro'] %}
+                    {% set tipo_class = registro['tipo']|lower|replace('_', '-') %}
+                    <time class="historico-data" datetime="{{ data_registro|replace(' ', 'T') }}">
+                        <span>{{ data_registro[8:10] }}/{{ data_registro[5:7] }}/{{ data_registro[:4] }}</span>
+                        <strong>{{ data_registro[11:16] }}</strong>
+                    </time>
+
+                    <div class="historico-detalhes">
+                        <div class="historico-cabecalho">
+                            <h4>{{ registro['medicamento_nome'] }}</h4>
+                            {% if registro['tipo'] == 'ADMINISTRADO' %}
+                            {% set resultado = 'Administrado' %}
+                            {% elif registro['tipo'] == 'NAO_ADMINISTRADO' %}
+                            {% set resultado = 'Não administrado' %}
+                            {% elif registro['tipo'] == 'RECUSADO' %}
+                            {% set resultado = 'Recusado pelo aluno' %}
+                            {% else %}
+                            {% set resultado = registro['tipo'] %}
+                            {% endif %}
+                            <span class="historico-status historico-status--{{ tipo_class }}">
+                                {{ resultado }}
+                            </span>
+                        </div>
+
+                        <div class="historico-metadados">
+                            <p>
+                                <span>Horário previsto</span>
+                                <strong>{{ registro['horario'] or 'Não informado' }}</strong>
+                            </p>
+                            <p>
+                                <span>Registrado por</span>
+                                <strong>{{ registro['responsavel'] }}</strong>
+                            </p>
+                        </div>
+
+                        {% if registro['observacoes'] %}
+                        <p class="historico-observacao">
+                            <strong>Observação:</strong> {{ registro['observacoes'] }}
+                        </p>
+                        {% endif %}
+
+                        <div class="historico-acoes">
+                            <form method="POST"
+                                action="{{ url_for('excluir_registro_historico', historico_id=registro['id']) }}"
+                                onsubmit="return confirm('Tem certeza de que deseja excluir este registro do histórico? Esta ação não pode ser desfeita.');">
+                                <button type="submit" class="button button-danger">
+                                    Excluir registro
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+
+            {% else %}
+            <div class="empty-state">
+                <p>Nenhum registro de administração nos últimos sete dias.</p>
+            </div>
+            {% endif %}
+        </section>
+
+        <footer class="footer-note">
+            ControleMed · Sistema local de controle de medicação escolar
+        </footer>
+
+    </main>
+
+    <script>
+        document.querySelectorAll('.administracao-form').forEach(function (form) {
+            const resultado = form.querySelector('.resultado-administracao');
+            const campoMotivo = form.querySelector('.campo-motivo');
+            const observacao = form.querySelector('.observacao-administracao');
+
+            function atualizarMotivo() {
+                const exigeMotivo = resultado.value !== 'ADMINISTRADO';
+
+                campoMotivo.hidden = !exigeMotivo;
+                observacao.required = exigeMotivo;
+
+                if (!exigeMotivo) {
+                    observacao.value = '';
+                }
+            }
+
+            resultado.addEventListener('change', atualizarMotivo);
+            atualizarMotivo();
+        });
+    </script>
+</body>
+
+</html>

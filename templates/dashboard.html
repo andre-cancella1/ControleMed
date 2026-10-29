@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel | ControleMed</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <main class="container">
+
+        <!-- Cabeçalho -->
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-icon" aria-hidden="true">CM</div>
+
+                <div>
+                    <h1>ControleMed</h1>
+                    <p>Controle de medicação escolar</p>
+                </div>
+            </div>
+
+            <div class="user-area">
+                <a href="{{ url_for('listar_turmas') }}" class="button button-outline">
+                    Gerenciar turmas
+                </a>
+
+                <form action="{{ url_for('logout') }}" method="POST">
+                    <button type="submit" class="button button-outline">
+                        Sair
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <!-- Mensagens do sistema -->
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% if mensagens %}
+        <div class="messages">
+            {% for categoria, mensagem in mensagens %}
+            <div class="alert alert-{{ categoria }}" role="alert">
+                {{ mensagem }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Título e ação principal -->
+        <section class="page-heading">
+            <div>
+                <span class="eyebrow">GESTÃO ESCOLAR</span>
+                <h2>Alunos</h2>
+                <p>Consulte e gerencie os registros dos alunos.</p>
+            </div>
+
+            <a href="{{ url_for('novo_aluno') }}" class="button button-primary">
+                + Cadastrar aluno
+            </a>
+        </section>
+
+        <!-- Busca e filtros -->
+        <section class="section-card">
+            <div class="section-title">
+                <div>
+                    <h3>Filtrar alunos</h3>
+                    <p>Localize os alunos pelo nome ou pela turma.</p>
+                </div>
+            </div>
+
+            <form method="GET" action="{{ url_for('dashboard') }}" class="filters">
+
+                <div class="filter-field">
+                    <label for="busca">Nome do aluno</label>
+                    <input type="text" id="busca" name="busca" placeholder="Digite o nome do aluno"
+                        value="{{ request.args.get('busca', '') }}">
+                </div>
+
+                {% if turma_filtro %}
+                <input type="hidden" name="turma" value="{{ turma_filtro }}">
+                {% endif %}
+
+                <div class="filter-actions">
+                    <button type="submit" class="button button-primary">
+                        Buscar
+                    </button>
+
+                    <a href="{{ url_for('dashboard') }}" class="button button-outline">
+                        Limpar
+                    </a>
+                </div>
+            </form>
+
+            {% if turmas %}
+            <nav class="class-filters" aria-label="Filtrar alunos por turma">
+                {% for turma in turmas %}
+                <a class="class-filter{% if turma_filtro == turma %} is-active{% endif %}"
+                    href="{{ url_for('dashboard', turma=turma, busca=busca or None) }}" {% if turma_filtro==turma
+                    %}aria-current="page" {% endif %}>
+                    {{ turma }}
+                </a>
+                {% endfor %}
+            </nav>
+            {% endif %}
+        </section>
+
+        <!-- Lista de alunos -->
+        <section class="students-section">
+            <div class="section-title">
+                <div>
+                    <h3>Lista de alunos</h3>
+                    <p>Registros disponíveis no sistema.</p>
+                </div>
+                <span class="result-count">
+                    {{ total_alunos }} cadastrado(s) · {{ alunos|length }} exibido(s)
+                </span>
+            </div>
+
+            <div class="student-grid">
+                {% for aluno in alunos %}
+                <article class="student-card">
+
+                    <div class="avatar">
+                        {% if aluno['foto'] %}
+                        <img src="{{ url_for(
+                                        'foto_aluno',
+                                        nome_arquivo=aluno['foto']
+                                    ) }}" alt="Foto de {{ aluno['nome'] }}">
+                        {% else %}
+                        <div class="avatar-placeholder" aria-label="Aluno sem foto">
+                            <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor"
+                                stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="8" r="4" />
+                                <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+                            </svg>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="student-info">
+                        <h4>{{ aluno['nome'] }}</h4>
+
+                        <span class="tag">
+                            {{ aluno['turma'] }}
+                        </span>
+                    </div>
+
+
+                    <div class="student-status">
+                        <a href="{{ url_for(
+        'ficha_aluno',
+        aluno_id=aluno['id']
+    ) }}" class="button button-primary" aria-label="Ver ficha de {{ aluno['nome'] }}">
+                            Ver ficha
+                        </a>
+
+                        <a href="{{ url_for(
+        'editar_aluno',
+        aluno_id=aluno['id']
+    ) }}" class="button button-outline" aria-label="Editar {{ aluno['nome'] }}">
+                            Editar
+                        </a>
+
+                        <form action="{{ url_for(
+        'excluir_aluno',
+        aluno_id=aluno['id']
+    ) }}" method="POST" onsubmit="return confirm(
+        'Deseja realmente remover este aluno da lista?'
+    );">
+                            <button type="submit" class="button button-danger">
+                                Remover
+                            </button>
+                        </form>
+                    </div>
+
+
+                </article>
+                {% else %}
+                <div class="empty-state">
+                    <h3>Nenhum aluno encontrado</h3>
+                    <p>
+                        Não encontramos alunos com esses filtros.
+                        Tente outra busca ou cadastre um novo aluno.
+                    </p>
+
+                    <a href="{{ url_for('novo_aluno') }}" class="button button-primary">
+                        Cadastrar aluno
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <footer class="footer-note">
+            ControleMed · Sistema local de controle de medicação escolar
+        </footer>
+
+    </main>
+</body>
+
+</html>

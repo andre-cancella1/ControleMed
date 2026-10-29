@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turmas | ControleMed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <header class="page-header">
+            <div>
+                <h1>Turmas</h1>
+                <p>Gerencie as turmas cadastradas na escola.</p>
+            </div>
+
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                Voltar ao painel
+            </a>
+        </header>
+
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+            {% if mensagens %}
+                {% for categoria, mensagem in mensagens %}
+                    <div class="alert alert-{{ categoria }}">
+                        {{ mensagem }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <section class="dashboard-actions">
+            <div>
+                <h2>Lista de turmas</h2>
+                <p>Total de turmas ativas: {{ turmas|length }}</p>
+            </div>
+
+            <a href="{{ url_for('nova_turma') }}" class="btn btn-primary">
+                + Cadastrar turma
+            </a>
+        </section>
+
+        <section class="form-card table-panel">
+            {% if turmas %}
+                <div class="table-wrap">
+                    <table class="turma-table">
+                        <thead>
+                            <tr>
+                                <th>
+                                    Nome da turma
+                                </th>
+                                <th>
+                                    Alunos ativos
+                                </th>
+                                <th>
+                                    Ações
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for turma in turmas %}
+                                <tr>
+                                    <td>
+                                        {{ turma['nome'] }}
+                                    </td>
+
+                                    <td>
+                                        {{ turma['quantidade_alunos'] }}
+                                    </td>
+
+                                    <td>
+                                        <div class="form-actions table-actions">
+                                            <a
+                                                href="{{ url_for('editar_turma', turma_id=turma['id']) }}"
+                                                class="btn btn-secondary"
+                                            >
+                                                Editar
+                                            </a>
+
+                                            <form
+                                                action="{{ url_for('excluir_turma', turma_id=turma['id']) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Deseja remover esta turma?');"
+                                            >
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-danger"
+                                                    {% if turma['quantidade_alunos'] > 0 %}disabled title="A turma possui alunos ativos"{% endif %}
+                                                >
+                                                    Remover
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <h3>Nenhuma turma cadastrada</h3>
+                    <p>Cadastre a primeira turma para começar.</p>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

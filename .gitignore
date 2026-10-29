@@ -1,0 +1,4 @@
+# Ignorar as pastas instance e instance copy por completo
+instance/
+instance copy/
+venv/

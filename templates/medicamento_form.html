@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Editar medicamento' if medicamento else 'Cadastrar medicamento' }} - ControleMed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <main class="container">
+        <header class="page-header">
+            <div>
+                <h1>{{ 'Editar medicamento' if medicamento else 'Cadastrar medicamento' }}</h1>
+                <p>Aluno: {{ aluno['nome'] }}</p>
+            </div>
+
+            <a href="{{ url_for('ficha_aluno', aluno_id=aluno['id']) }}" class="button button-outline">
+                Voltar à ficha
+            </a>
+        </header>
+
+        <section class="card">
+            <form method="POST">
+                <div class="form-group">
+                    <label for="nome">Nome do medicamento *</label>
+                    <input type="text" id="nome" name="nome" required maxlength="150"
+                        value="{{ request.form.get('nome', medicamento['nome'] if medicamento else '') }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="dosagem">Dosagem</label>
+                    <input type="text" id="dosagem" name="dosagem" maxlength="100" placeholder="Ex.: 5 ml, 1 comprimido"
+                        value="{{ request.form.get('dosagem', medicamento['dosagem'] or '' if medicamento else '') }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="data_inicio">Data de início</label>
+                    <input type="date" id="data_inicio" name="data_inicio"
+                        value="{{ request.form.get('data_inicio', medicamento['data_inicio'] or '' if medicamento else '') }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="data_fim">Data de término</label>
+                    <input type="date" id="data_fim" name="data_fim"
+                        value="{{ request.form.get('data_fim', medicamento['data_fim'] or '' if medicamento else '') }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="observacoes">Observações</label>
+                    <textarea id="observacoes" name="observacoes"
+                        rows="3">{{ request.form.get('observacoes', medicamento['observacoes'] or '' if medicamento else '') }}</textarea>
+                </div>
+
+                <hr>
+
+                <h2>Horários de administração</h2>
+                <p>Informe os horários previstos para cada dia da semana.</p>
+
+                {% for dia, nome_dia in dias_semana %}
+                <fieldset class="form-group">
+                    <legend>{{ nome_dia }}</legend>
+
+                    {% set horarios_atuais = horarios_por_dia.get(dia, []) if horarios_por_dia else [] %}
+                    {% set horarios_enviados = request.form.getlist('horario_' ~ dia) %}
+
+                    {% if request.method == 'POST' %}
+                    {% set horarios_exibidos = horarios_enviados if horarios_enviados else [''] %}
+                    {% elif horarios_atuais %}
+                    {% set horarios_exibidos = horarios_atuais %}
+                    {% else %}
+                    {% set horarios_exibidos = [''] %}
+                    {% endif %}
+
+                    {% for horario in horarios_exibidos %}
+                    <div class="form-group">
+                        <label for="horario_{{ dia }}_{{ loop.index }}">
+                            Horário {{ loop.index }}
+                        </label>
+                        <input type="time" id="horario_{{ dia }}_{{ loop.index }}" name="horario_{{ dia }}"
+                            value="{{ horario }}">
+                    </div>
+                    {% endfor %}
+
+                    <button type="button" class="button button-outline" onclick="adicionarHorario({{ dia }}, this)">
+                        + Adicionar horário
+                    </button>
+                </fieldset>
+                {% endfor %}
+
+                <div class="form-actions">
+                    <button type="submit" class="button button-primary">
+                        {{ 'Salvar alterações' if medicamento else 'Salvar medicamento' }}
+                    </button>
+
+                    <a href="{{ url_for('ficha_aluno', aluno_id=aluno['id']) }}" class="button button-outline">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        function adicionarHorario(dia, botao) {
+            const grupo = botao.parentElement;
+            const campos = grupo.querySelectorAll('input[type="time"]');
+            const proximoNumero = campos.length + 1;
+
+            const campoGrupo = document.createElement('div');
+            campoGrupo.className = 'form-group';
+
+            const label = document.createElement('label');
+            label.htmlFor = `horario_${dia}_${proximoNumero}`;
+            label.textContent = `Horário ${proximoNumero}`;
+
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.id = `horario_${dia}_${proximoNumero}`;
+            input.name = `horario_${dia}`;
+
+            campoGrupo.appendChild(label);
+            campoGrupo.appendChild(input);
+
+            grupo.insertBefore(campoGrupo, botao);
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entrar | ControleMed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-page">
+    <main class="login-card">
+        <div class="brand-icon" aria-hidden="true">CM</div>
+        <h1>ControleMed</h1>
+        <p class="subtitle">Controle de medicação escolar</p>
+
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+            {% for categoria, mensagem in mensagens %}
+                <div class="alert alert-{{ categoria }}" role="alert">
+                    {{ mensagem }}
+                </div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <label for="usuario">Usuário</label>
+            <input
+                id="usuario"
+                name="usuario"
+                type="text"
+                autocomplete="username"
+                required
+                autofocus
+            >
+
+            <label for="senha">Senha</label>
+            <input
+                id="senha"
+                name="senha"
+                type="password"
+                autocomplete="current-password"
+                required
+            >
+
+            <button class="button button-primary button-full" type="submit">
+                Entrar no sistema
+            </button>
+        </form>
+
+        <p class="footer-note">Aplicação local • Sem necessidade de internet</p>
+    </main>
+</body>
+</html>

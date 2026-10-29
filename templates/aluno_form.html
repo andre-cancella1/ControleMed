@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Editar aluno' if aluno else 'Cadastrar aluno' }} | ControleMed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <header class="page-header">
+            <div>
+                <h1>{{ 'Editar aluno' if aluno else 'Cadastrar aluno' }}</h1>
+                <p>Preencha os dados do aluno.</p>
+            </div>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                Voltar
+            </a>
+        </header>
+
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+            {% if mensagens %}
+                {% for categoria, mensagem in mensagens %}
+                    <div class="alert alert-{{ categoria }}">
+                        {{ mensagem }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data" class="form-card">
+            <div class="form-group">
+                <label for="nome">Nome completo *</label>
+                <input
+                    type="text"
+                    id="nome"
+                    name="nome"
+                    maxlength="150"
+                    value="{{ aluno['nome'] if aluno else '' }}"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="turma">Turma *</label>
+                <select id="turma" name="turma" required>
+                    {% if turmas %}
+                        <option value="" disabled
+                            {% if not aluno or aluno['turma'] not in turmas %}selected{% endif %}>
+                            Selecione uma turma
+                        </option>
+                        {% for turma in turmas %}
+                            <option value="{{ turma }}"
+                                {% if aluno and aluno['turma'] == turma %}selected{% endif %}>
+                                {{ turma }}
+                            </option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="" selected disabled>Nenhuma turma cadastrada</option>
+                    {% endif %}
+                </select>
+                {% if not turmas %}
+                    <small>
+                        Cadastre uma turma antes de incluir alunos.
+                        <a href="{{ url_for('listar_turmas') }}">Gerenciar turmas</a>
+                    </small>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="foto">Foto do aluno</label>
+                <input
+                    type="file"
+                    id="foto"
+                    name="foto"
+                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                >
+                <small>Formatos permitidos: JPG, JPEG, PNG e WEBP. Máximo: 5 MB.</small>
+            </div>
+
+            {% if aluno and aluno['foto'] %}
+                <div class="form-group">
+                    <p>Foto atual:</p>
+                    <img
+                        src="{{ url_for('foto_aluno', nome_arquivo=aluno['foto']) }}"
+                        alt="Foto atual do aluno"
+                        class="current-photo"
+                    >
+                    <p><small>Se não escolher outra foto, a foto atual será mantida.</small></p>
+                </div>
+            {% endif %}
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {{ 'Salvar alterações' if aluno else 'Cadastrar aluno' }}
+                </button>
+
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </main>
+</body>
+</html>

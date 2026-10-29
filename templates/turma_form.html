@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Editar turma' if turma else 'Cadastrar turma' }} | ControleMed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <main class="container">
+        <header class="page-header">
+            <div>
+                <h1>{{ 'Editar turma' if turma else 'Cadastrar turma' }}</h1>
+                <p>Informe o nome da turma que deseja cadastrar.</p>
+            </div>
+
+            <a href="{{ url_for('listar_turmas') }}" class="btn btn-secondary">
+                Voltar
+            </a>
+        </header>
+
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+            {% if mensagens %}
+                {% for categoria, mensagem in mensagens %}
+                    <div class="alert alert-{{ categoria }}">
+                        {{ mensagem }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" class="form-card">
+            <div class="form-group">
+                <label for="nome">Nome da turma *</label>
+
+                <input
+                    type="text"
+                    id="nome"
+                    name="nome"
+                    maxlength="50"
+                    placeholder="Ex.: 6º ano A"
+                    value="{{ turma['nome'] if turma else '' }}"
+                    required
+                    autofocus
+                >
+
+                <small>
+                    Digite o nome que será utilizado para identificar a turma.
+                </small>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {{ 'Salvar alterações' if turma else 'Cadastrar turma' }}
+                </button>
+
+                <a href="{{ url_for('listar_turmas') }}" class="btn btn-secondary">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </main>
+</body>
+</html>
