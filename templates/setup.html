@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuração inicial | ControleMed</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="login-page">
+    <main class="login-card">
+        <div class="brand-icon" aria-hidden="true">CM</div>
+        <h1>Configuração inicial</h1>
+        <p class="subtitle">Crie o acesso de administrador do ControleMed.</p>
+
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+        {% for categoria, mensagem in mensagens %}
+        <div class="alert alert-{{ categoria }}" role="alert">
+            {{ mensagem }}
+        </div>
+        {% endfor %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('configuracao_inicial') }}">
+            <label for="nome">Nome</label>
+            <input id="nome" name="nome" type="text" maxlength="80" autocomplete="name" required autofocus>
+
+            <label for="usuario">Usuário</label>
+            <input id="usuario" name="usuario" type="text" maxlength="40" autocomplete="username" required>
+
+            <label for="senha">Senha (mínimo 12 caracteres)</label>
+            <input id="senha" name="senha" type="password" minlength="12" autocomplete="new-password" required>
+
+            <label for="confirmar_senha">Confirme a senha</label>
+            <input id="confirmar_senha" name="confirmar_senha" type="password" minlength="12" autocomplete="new-password" required>
+
+            <button class="button button-primary button-full" type="submit">
+                Criar acesso
+            </button>
+        </form>
+
+        <p class="footer-note">Os dados ficam salvos neste computador.</p>
+    </main>
+</body>
+
+</html>

@@ -1,6 +1,11 @@
+import os
 import secrets
 import sqlite3
+import sys
+import subprocess
+import threading
 import uuid
+import webbrowser
 from datetime import datetime
 from pathlib import Path
 from functools import wraps
@@ -22,7 +27,15 @@ from werkzeug.utils import secure_filename
 from PIL import Image, UnidentifiedImageError
 
 BASE_DIR = Path(__file__).resolve().parent
-INSTANCE_DIR = BASE_DIR / "instance"
+RESOURCE_DIR = Path(getattr(sys, "_MEIPASS", BASE_DIR))
+if getattr(sys, "frozen", False):
+    DATA_ROOT = Path(
+        os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")
+    )
+    INSTANCE_DIR = DATA_ROOT / "ControleMed"
+else:
+    INSTANCE_DIR = BASE_DIR / "instance"
+
 PHOTO_DIR = INSTANCE_DIR / "fotos"
 DB_PATH = INSTANCE_DIR / "controlemed.db"
 SECRET_PATH = INSTANCE_DIR / "secret_key.txt"
@@ -36,10 +49,14 @@ PHOTO_DIR.mkdir(parents=True, exist_ok=True)
 if not SECRET_PATH.exists():
     SECRET_PATH.write_text(secrets.token_hex(32), encoding="utf-8")
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=str(RESOURCE_DIR / "templates"),
+    static_folder=str(RESOURCE_DIR / "static"),
+)
 app.config.update(
     SECRET_KEY=SECRET_PATH.read_text(encoding="utf-8").strip(),
-    TEMPLATES_AUTO_RELOAD=True,
+    TEMPLATES_AUTO_RELOAD=not getattr(sys, "frozen", False),
     MAX_CONTENT_LENGTH=MAX_FOTO + 256 * 1024,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
@@ -154,27 +171,10 @@ def inicializar_banco():
                 "ALTER TABLE alunos ADD COLUMN ativo INTEGER NOT NULL DEFAULT 1"
             )
 
-        # Só cria o administrador se ele ainda não existir.
-        admin = con.execute(
-            "SELECT id FROM usuarios WHERE usuario = ?",
-            ("admin",),
-        ).fetchone()
-
-        if admin is None:
-            con.execute(
-                """INSERT INTO usuarios (nome, usuario, senha_hash)
-                   VALUES (?, ?, ?)""",
-                (
-                    "Administrador",
-                    "admin",
-                    generate_password_hash("ControleMed@2026"),
-                ),
-            )
-
         # Não repõe os alunos de demonstração se já houver registros.
         quantidade = con.execute("SELECT COUNT(*) FROM alunos").fetchone()[0]
 
-        if quantidade == 0:
+        if quantidade == 0 and not getattr(sys, "frozen", False):
             exemplos = [
                 ("Ana Souza (DEMO)", "6º ano"),
                 ("Bruno Lima (DEMO)", "6º ano"),
@@ -207,6 +207,13 @@ def login_obrigatorio(func):
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def existe_usuario_ativo():
+    with conectar_banco() as con:
+        return con.execute(
+            "SELECT 1 FROM usuarios WHERE ativo = 1 LIMIT 1"
+        ).fetchone() is not None
 
 
 def obter_aluno(aluno_id):
@@ -772,11 +779,57 @@ def remover_foto(nome_foto):
 def inicio():
     if "usuario_id" in session:
         return redirect(url_for("dashboard"))
+    if not existe_usuario_ativo():
+        return redirect(url_for("configuracao_inicial"))
     return redirect(url_for("login"))
+
+
+@app.route("/configuracao-inicial", methods=["GET", "POST"])
+def configuracao_inicial():
+    if existe_usuario_ativo():
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        usuario = request.form.get("usuario", "").strip()
+        senha = request.form.get("senha", "")
+        confirmar_senha = request.form.get("confirmar_senha", "")
+
+        if not nome or len(nome) > 80:
+            flash("Informe um nome com até 80 caracteres.", "erro")
+        elif not usuario or len(usuario) > 40:
+            flash("Informe um usuário com até 40 caracteres.", "erro")
+        elif len(senha) < 12:
+            flash("A senha precisa ter pelo menos 12 caracteres.", "erro")
+        elif senha != confirmar_senha:
+            flash("As senhas não conferem.", "erro")
+        else:
+            try:
+                with conectar_banco() as con:
+                    con.execute("BEGIN IMMEDIATE")
+                    if con.execute(
+                        "SELECT 1 FROM usuarios WHERE ativo = 1 LIMIT 1"
+                    ).fetchone():
+                        return redirect(url_for("login"))
+
+                    con.execute(
+                        """INSERT INTO usuarios (nome, usuario, senha_hash)
+                           VALUES (?, ?, ?)""",
+                        (nome, usuario, generate_password_hash(senha)),
+                    )
+                flash("Acesso criado. Entre com seu usuário e senha.", "sucesso")
+                return redirect(url_for("login"))
+            except sqlite3.IntegrityError:
+                flash("Esse nome de usuário já está em uso.", "erro")
+
+    return render_template("setup.html")
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if not existe_usuario_ativo():
+        return redirect(url_for("configuracao_inicial"))
+
     if "usuario_id" in session:
         return redirect(url_for("dashboard"))
 
@@ -1161,9 +1214,45 @@ def excluir_turma(turma_id):
     return redirect(url_for("listar_turmas"))
 
 
+def garantir_atalho_desktop():
+    if not getattr(sys, "frozen", False):
+        return
+
+    script = RESOURCE_DIR / "create_shortcut.vbs"
+    icone = RESOURCE_DIR / "care_heh_hehy_medical_pills_remedy_medicine_icon_255235.ico"
+    if not script.is_file() or not icone.is_file():
+        app.logger.warning("Recursos para criar o atalho não foram encontrados.")
+        return
+
+    try:
+        resultado = subprocess.run(
+            ["cscript", "//nologo", str(script), sys.executable, str(icone)],
+            check=False,
+            capture_output=True,
+            text=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except OSError:
+        app.logger.exception("Não foi possível iniciar a criação do atalho.")
+        return
+
+    if resultado.returncode != 0:
+        app.logger.warning(
+            "Não foi possível criar o atalho: %s",
+            resultado.stderr.strip() or resultado.stdout.strip(),
+        )
+
+
+def executar_aplicacao():
+    from waitress import create_server
+
+    garantir_atalho_desktop()
+    servidor = create_server(app, host="127.0.0.1", port=0)
+    endereco = f"http://127.0.0.1:{servidor.effective_port}"
+    threading.Timer(0.7, lambda: webbrowser.open(endereco)).start()
+    app.logger.info("ControleMed disponível em %s", endereco)
+    servidor.run()
+
+
 if __name__ == "__main__":
-    app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=False,
-    )
+    executar_aplicacao()
